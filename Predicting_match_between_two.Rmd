@@ -1,0 +1,276 @@
+---
+title: "Predicting_match"
+author: "Group Project"
+date: "12/16/2020"
+output: 
+  pdf_document: 
+    keep_tex: yes
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, Libraries, warning=FALSE,message=FALSE}
+
+library(fmsb)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(scales)
+library(tidyverse)
+library(randomForest)
+library(xgboost)
+
+```
+
+## Goal
+
+Goal is to predict match between two persons given a set of attributes between them. In the experiment, we have data of match between persons and qualities of the persons involved in match. Using these details, we'll build a model which tries to predict a match.
+
+
+## Creating Pairs data
+
+Form the given dataset, we create the data frame for pairs. This data frame should have 
+
+1) Male attributes(Details, Interests, Data given in survey etc.)
+2) Male attributes(Details, Interests, Data given in survey etc.)
+3) Match. This is Boolean 0 or 1
+
+
+```{r, Creating pairs data}
+
+
+raw_data <- read.csv('D:/Study/Stat/Final_project/Datasets/Speed_Dating/Speed Dating Data.csv', header = T, stringsAsFactors = F)
+
+# Selecting required features
+use_features = c("iid", "gender", "wave", "pid", "match", "samerace", "age_o", "race_o", 
+                 "pf_o_att", "pf_o_sin", "pf_o_int","pf_o_fun", "pf_o_amb", "pf_o_sha",
+                 "age", "field_cd", "race", "imprace", "imprelig", "goal", "date",
+                 "go_out", "sports",
+                 "tvsports", "exercise", "dining", "museums", "art", "hiking",
+                 "gaming", "clubbing",
+                 "reading", "tv", "theater", "movies", "concerts", "music",
+                 "shopping", "yoga", "exphappy",
+                 "attr1_1", "sinc1_1", "intel1_1", "fun1_1", "amb1_1", "shar1_1",
+                 "attr2_1", "sinc2_1",
+                 "intel2_1", "fun2_1", "amb2_1", "shar2_1", "attr3_1", "sinc3_1",
+                 "fun3_1", "intel3_1", "amb3_1")
+
+
+
+data = raw_data[use_features]
+
+mdata_df = data[data[,'gender']==1,]
+fdata_df = data[data[,'gender']==0,]
+
+# selecting male features. This will be matched with pis for female
+
+cmfeatures = c('iid', 'pid', 'match', 'samerace', 'age', 'field_cd', 'race',
+               'imprace', 'imprelig', 'goal', 'date', 'go_out',
+              'sports', 'tvsports', 'exercise', 'dining', 'museums', 'art',
+              'hiking', 'gaming', 'clubbing',
+              'reading', 'tv', 'theater', 'movies', 'concerts', 'music',
+              'shopping', 'yoga', 'exphappy',
+              'attr1_1', 'sinc1_1', 'intel1_1', 'fun1_1', 'amb1_1', 'shar1_1',
+              'attr2_1', 'sinc2_1',
+              'intel2_1', 'fun2_1', 'amb2_1', 'shar2_1', 'attr3_1', 'sinc3_1',
+              'fun3_1', 'intel3_1', 'amb3_1')
+
+new_mdata = mdata_df[cmfeatures]
+
+cffeatures = c(cmfeatures[1] , cmfeatures[c(5:length(cmfeatures))])
+
+new_fdata = fdata_df[cffeatures]
+
+# Merging data using pid and iid columns
+pair_data = merge_data = merge(x=new_mdata, y=new_fdata, by.x="pid", by.y="iid")
+
+
+# Storing data in csv for future use
+write.csv(pair_data, file = 'D:/Study/Stat/Final_project/Datasets/Speed_Dating/Pairs_Data.csv', row.names = FALSE)
+
+```
+
+```{r, Loading data}
+pairs_data <- read.csv('D:/Study/Stat/Final_project/Datasets/Speed_Dating/Pairs.csv', header = T, stringsAsFactors = FALSE)
+
+```
+
+Now we use this data and apply different models for this.
+
+## Logistic Regression 
+
+
+Using regression to find match between two people. Here input will be attributes of both men and women. Output will be Match(Boolean)
+
+```{r, Regression}
+
+# Code for Regression
+
+
+# Sigmoid for squashing output between 0 and 1
+sigmoid <- function(z){1/(1+exp(-z))}
+
+
+# Cost function. Using cross-entropy
+cost <- function(theta, X, y){
+  m <- length(y) 
+  h <- sigmoid(X %*% theta)
+  J <- (t(-y)%*%log(h)-t(1-y)%*%log(1-h))/m
+  J
+}
+
+
+# Gradient function to be given to optim
+grad <- function(theta, X, y){
+  m <- length(y) 
+  
+  h <- sigmoid(X%*%theta)
+  grad <- (t(X)%*%(h - y))/m
+  grad
+}
+
+
+# Main Logistic Regression function
+logisticReg <- function(X, y, max_iters){
+  X <- na.omit(X)
+  y <- na.omit(y)
+  # Adding Bias to first column
+  X <- mutate(X, bias =1)
+  X <- as.matrix(X[, c(ncol(X), 1:(ncol(X)-1))])
+  y <- as.matrix(y)
+  theta <- matrix(rep(0, ncol(X)), nrow = ncol(X))
+  # Using optim function to descend
+  costOpti <- optim(theta, fn = cost, gr = grad, X = X, y = y, control=list(maxit=max_iters))
+  return(costOpti$par)
+}
+
+# To get probability using regressor
+logisticProb <- function(theta, X){
+  X <- na.omit(X)
+  X <- mutate(X, bias =1)
+  X <- as.matrix(X[,c(ncol(X), 1:(ncol(X)-1))])
+  return(sigmoid(X%*%theta))
+}
+
+# To round probabilities >0.5 to 1 and vice-versa
+logisticPred <- function(prob){
+  return(round(prob, 0))
+}
+
+
+x = pairs_data[, -length(pairs_data)]
+y = pairs_data[, length(pairs_data)]
+theta <- logisticReg(x, y, 10000)
+probZ <- logisticProb(theta, x)
+Z <- logisticPred(probZ)
+
+# Probabilities
+print('Sample probabilities predicted are below')
+head(probZ)
+
+# Classified match
+print('Sample predicted match')
+head(Z)
+
+Z = as.numeric(Z)
+
+# Confusion matrix
+print('Confusion matrix')
+table(Z, y)
+
+
+```
+
+We can see from the confusion matrix that many of the matches are classified as non-matches. Although the prediction accuracy is good, as there are few matches, logistic regression is not able to predict match properly. So, we tried below different methods.
+
+
+
+```{r, XG Boost classification}
+
+dummy_sep <- rbinom(nrow(pairs_data), 1, 0.2)    # Create dummy indicator
+
+train_data <- pairs_data[dummy_sep == 0, ]
+test_data <- pairs_data[dummy_sep == 1, ]
+
+
+X = train_data[, -length(train_data)]
+# 
+Y = train_data[, length(train_data)]
+
+X = data.matrix(X)
+Y = data.matrix(Y)
+
+bst <- xgboost(data = data.matrix(x), 
+               label = data.matrix(y), 
+               eta = 0.1,
+               max_depth = 15, 
+               nround=100, 
+               subsample = 0.5,
+               colsample_bytree = 0.5,
+               seed = 1,
+               objective = "reg:logistic",
+)
+
+
+test_y = data.matrix(test_data[, length(pairs_data)])
+test_x = data.matrix(test_data[, -length(pairs_data)])
+test_y = as.numeric(test_y)
+test_pred = predict(bst, test_x)
+pred_labels = ifelse(test_pred > 0.5, 1, 0)
+
+
+# Confusion matrix
+
+print('Confusion matrix')
+table(pred_labels, test_y)
+
+
+# Accuracy
+
+print('Accuracy')
+
+sum(pred_labels==test_y) * 100 /length(test_y)
+
+
+# Important features 
+features = xgb.importance(colnames(test_x), model = bst)$Feature
+
+imp_features = xgb.importance(colnames(test_x), model = bst)$Feature[c(1:20)]
+
+print('Important features are')
+print(imp_features)
+least_imp_features = features[c((length(features)-5): length(features))]
+print('Least important features are')
+least_imp_features
+
+
+```
+## Results
+
+Above, we can see that XGB classifier predicts well and has a nice confusion matrix.
+
+Important attributes to determine a match are:
+
+1) Fun1_1_f - How funny a female wants male to be?
+2) Clubbing - How interested is a male in clubbing is?
+3) Exercise_f - How interested in exercise is the female?
+4) att2_1_f - How much does the female wants the male to be?
+5) intel1_1 - How much intelligent does the male wants female to be?
+
+
+While these are the top 5 features, few other contribute to the successful prediction as well. 
+
+Least important attributes as analysed using this dataset are:
+
+1) race: Race of the male participant
+2) go_out: How interested is male in going out
+3) intel3_1 and intel3_1f: How intelligent does a person think of themselves
+4) goal_f: Primary goal of female participant
+5) samerace: Whether participants are of the same race
+

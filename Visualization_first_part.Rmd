@@ -1,0 +1,581 @@
+---
+title: "Data_cleaning_visualization"
+author: "Group Project"
+date: "12/16/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fmsb)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(scales)
+library(tidyverse)
+library(RColorBrewer)
+library(gridExtra)
+```
+
+## Selecting required rows
+
+```{r, load data, clean, include = TRUE}
+
+rawdat <- 
+read.csv('D:\\Study\\Stat\\Final_project\\Datasets\\Speed_Dating\\Speed Dating Data.csv', header = T, stringsAsFactors = F)
+# remove columns that will not be used
+dat <- 
+rawdat %>% 
+  select(-id, -idg, -condtn, -round, -position, -positin1, -order, -partner, -tuition0,
+         -undergra, -mn_sat)
+
+```
+
+## Handling NA values
+This part of for cleaning the data first. Here some NA values are changed. Instead of dropping them, those who don't sum up to full values are deleted.
+
+
+```{r, data clean, include = TRUE}
+
+at00 <-
+dat %>%
+  select(iid, pid, dec, gender, attr, sinc, intel, fun, amb, shar, like, prob) %>% 
+  filter(!pid == "NA")
+
+at00[is.na(at00)] <- 1000
+
+at00$total <- rowSums(at00[,c("attr", "sinc", "intel", "fun", "amb", "shar")])
+
+at00 <-
+at00 %>% 
+  filter(!total == "6000")
+
+at00[at00 == "1000"] <- NA
+
+at00$total <- rowSums(at00[,c("attr", "sinc", "intel", "fun", "amb", "shar")], na.rm=TRUE)
+
+table(at00$total)
+
+at00 <-
+at00 %>% 
+  filter(!total == "0")
+
+at00 <-
+at00 %>% 
+  mutate(pgender = ifelse(gender == 0, 1, 0))
+
+```
+
+## Generalizing scale
+
+There are waves in the experiment. In some waves participants are asked to score in 0-10 scale while in some other waves, they are asked to score on 0-100 scale. So, to generalize, all scores to made in the 0-100 scale. What people look for in a match before performing experiment is selected below.
+
+```{r, Data Clean 2, include = TRUE}
+
+at11<-
+dat %>%
+  group_by(gender) %>%
+  select(iid, gender, attr1_1, sinc1_1, intel1_1, fun1_1, amb1_1, shar1_1) %>% 
+  unique()
+
+sum(is.na(at11$iid))
+sum(is.na(at11$gender))
+
+at11[is.na(at11)] <- 0
+at11$total <- rowSums(at11[,c("attr1_1", "sinc1_1", "intel1_1", "fun1_1", "amb1_1", "shar1_1")])
+
+table(at11$total)
+
+at11<-
+at11 %>% 
+  filter(!total == "0")
+
+# Rounding to required scale
+
+at11$attr1_1 <- round(at11$attr1_1/at11$total*100, digits = 2)
+at11$sinc1_1 <- round(at11$sinc1_1/at11$total*100, digits = 2)
+at11$intel1_1 <- round(at11$intel1_1/at11$total*100, digits = 2)
+at11$fun1_1 <- round(at11$fun1_1/at11$total*100, digits = 2)
+at11$amb1_1 <- round(at11$amb1_1/at11$total*100, digits = 2)
+at11$shar1_1 <- round(at11$shar1_1/at11$total*100, digits = 2)
+
+at11$total <- rowSums(at11[,c("attr1_1", "sinc1_1", "intel1_1", "fun1_1", "amb1_1", "shar1_1")])
+
+at11$total <- round(at11$total, digits = 0)
+table(at11$total)
+
+# What same sex peers are looking for in their partners
+
+at41<-
+dat %>%
+  group_by(gender) %>%
+  select(iid, gender, attr4_1, sinc4_1, intel4_1, fun4_1, amb4_1, shar4_1) %>% 
+  unique()
+
+sum(is.na(at41$iid))
+sum(is.na(at41$gender))
+
+at41[is.na(at41)] <- 0
+
+at41$total <- rowSums(at41[,c("attr4_1", "sinc4_1", "intel4_1", "fun4_1", "amb4_1", "shar4_1")])
+
+table(at41$total)
+at41<-
+at41 %>% 
+  filter(!total == "0")
+
+at41$attr4_1 <- round(at41$attr4_1/at41$total*100, digits = 2)
+at41$sinc4_1 <- round(at41$sinc4_1/at41$total*100, digits = 2)
+at41$intel4_1 <- round(at41$intel4_1/at41$total*100, digits = 2)
+at41$fun4_1 <- round(at41$fun4_1/at41$total*100, digits = 2)
+at41$amb4_1 <- round(at41$amb4_1/at41$total*100, digits = 2)
+at41$shar4_1 <- round(at41$shar4_1/at41$total*100, digits = 2)
+
+at41$total <- rowSums(at41[,c("attr4_1", "sinc4_1", "intel4_1", "fun4_1", "amb4_1", "shar4_1")])
+
+at41$total <- round(at41$total, digits = 0)
+table(at41$total)
+
+# What opposite sex is looking for in a partner 
+
+at21<-
+dat %>%
+  group_by(gender) %>%
+  select(iid, gender, attr2_1, sinc2_1, intel2_1, fun2_1, amb2_1, shar2_1) %>% 
+  unique()
+
+sum(is.na(at21$iid))
+sum(is.na(at21$gender))
+
+at21[is.na(at21)] <- 0
+
+at21$total <- rowSums(at21[,c("attr2_1", "sinc2_1", "intel2_1", "fun2_1", "amb2_1", "shar2_1")])
+
+table(at21$total)
+at21<-
+at21 %>% 
+  filter(!total == "0")
+
+at21$attr2_1 <- round(at21$attr2_1/at21$total*100, digits = 2)
+at21$sinc2_1 <- round(at21$sinc2_1/at21$total*100, digits = 2)
+at21$intel2_1 <- round(at21$intel2_1/at21$total*100, digits = 2)
+at21$fun2_1 <- round(at21$fun2_1/at21$total*100, digits = 2)
+at21$amb2_1 <- round(at21$amb2_1/at21$total*100, digits = 2)
+at21$shar2_1 <- round(at21$shar2_1/at21$total*100, digits = 2)
+
+at21$total <- rowSums(at21[,c("attr2_1", "sinc2_1", "intel2_1", "fun2_1", "amb2_1", "shar2_1")])
+
+at21$total <- round(at21$total, digits = 0)
+table(at21$total)
+
+# Twin bar plot - 1
+
+test1 <-
+at11 %>%
+  group_by(gender) %>%
+  summarise(Attractive = mean(attr1_1), Sincere = mean(sinc1_1), Intelligent = mean(intel1_1), Fun = mean(fun1_1), Ambitious = mean(amb1_1), Interest = mean(shar1_1))
+
+test1forplot <-
+test1 %>% 
+  select(-gender)
+ 
+maxmin <- data.frame(
+ Attractive = c(36, 0),
+ Sincere = c(36, 0),
+ Intelligent = c(36, 0),
+ Fun = c(36, 0),
+ Ambitious = c(36, 0),
+ Interest = c(36, 0))
+
+test11 <- rbind(maxmin, test1forplot)
+
+test11male <- test11[c(1,2,4),]
+test11female <- test11[c(1,2,3),]
+
+DATA <- data.frame(
+  traits = c(colnames(test11)),
+  men = as.numeric(test11[4,]),
+  women = as.numeric(test11[3,])
+)
+# Twin bar plot - 2
+test4 <-
+at41 %>%
+  group_by(gender) %>%
+  summarise(Attractive = mean(attr4_1), Sincere = mean(sinc4_1), Intelligent = mean(intel4_1), Fun = mean(fun4_1), Ambitious = mean(amb4_1), Interest = mean(shar4_1))
+
+test4forplot <-
+test4 %>% 
+  select(-gender)
+
+test41 <- rbind(maxmin, test4forplot)
+
+DATA_1 <- data.frame(
+  traits = c(colnames(test41)),
+  men = as.numeric(test41[4,]),
+  women = as.numeric(test41[3,])
+)
+# Twin bar plot - 3
+test2 <-
+at21 %>%
+  group_by(gender) %>%
+  summarise(Attractive = mean(attr2_1), Sincere = mean(sinc2_1), Intelligent = mean(intel2_1), Fun = mean(fun2_1), Ambitious = mean(amb2_1), Interest = mean(shar2_1))
+
+test2forplot <-
+test2 %>% 
+  select(-gender)
+
+test21 <- rbind(maxmin, test2forplot)
+
+DATA_2 <- data.frame(
+  traits = c(colnames(test21)),
+  men = as.numeric(test21[4,]),
+  women = as.numeric(test21[3,])
+)
+
+```
+
+## Data Cleaning/Preperation - Part-2 
+
+```{r Data loading and cleaning, include = TRUE, warning=FALSE}
+data = read.csv(
+"/Users/rithvikananth/Documents/R Files/9781789950298/Data for practical examples and exercises/SD_data.csv")
+data$gender <- as.factor(data$gender)
+data$race <- as.factor(data$race)
+data$career_c <- as.factor(data$career_c)
+data$dec <- as.factor(data$dec)
+data$date <- as.factor(data$date)
+data$samerace <- as.factor(data$samerace)
+
+career_data = select(filter(data, !is.na(career_c)), iid,gender, career_c)
+career_data <- unique(career_data, by = iid)
+
+# for top men and women 
+Dating_Data = read.csv("/Users/rithvikananth/Documents/R Files/9781789950298/Data for practical examples and exercises/SD_data.csv")
+
+Frequency = table(Dating_Data$iid)
+Frequency = data.frame(Frequency)
+names(Frequency)= c("iid", "NumOfDates")
+Dating_Data = merge(Dating_Data, Frequency, by = "iid")
+
+
+Pop = aggregate(Dating_Data$dec, list(Dating_Data$pid), sum)
+names(Pop)= c("iid", "Popular")
+Dating_Data = merge(Dating_Data, Pop, by = "iid")
+Dating_Data$PoPRel = Dating_Data$Popular/Dating_Data$NumOfDates * 100
+
+Dating_Data$race[Dating_Data$race==1] = "African"
+Dating_Data$race[Dating_Data$race==2] = "European"
+Dating_Data$race[Dating_Data$race==3] = "Latino"
+Dating_Data$race[Dating_Data$race==4] = "Asian"
+Dating_Data$race[Dating_Data$race==5] = "Native"
+Dating_Data$race[Dating_Data$race==6] = "Other"
+
+#Subsets with only men and women 
+Man = subset(Dating_Data, gender == 1)
+Woman = subset(Dating_Data, gender == 0)
+
+#Removing the duplicates
+Woman = Woman[order(Woman$PoPRel, decreasing = TRUE),]
+index <- which(duplicated(Woman$iid))
+Woman = Woman[-index,]
+Man = Man[order(Man$PoPRel,decreasing = TRUE),]
+index <- which(duplicated(Man$iid))
+Man = Man[-index,]
+TopWoman = Woman[-c(seq(28,274,1)),]
+TopMan = Man[-c(seq(28,277,1)),]
+```
+
+## What people (grouped by gender) look for in a match?
+Above selected data is visualized in below chart. 
+
+```{r, what ppl look for, include=TRUE}
+g.mid<-ggplot(DATA,aes(x=1,y=traits))+geom_text(aes(label=traits))+
+  geom_segment(aes(x=0.94,xend=0.96,yend=traits))+
+  geom_segment(aes(x=1.04,xend=1.065,yend=traits))+
+  ggtitle("")+
+  ylab(NULL)+
+  scale_x_continuous(expand=c(0,0),limits=c(0.94,1.065))+
+  theme(axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background=element_blank(),
+        axis.text.x=element_text(color=NA),
+        axis.ticks.x=element_line(color=NA),
+        plot.margin = unit(c(1,-1,1,-1), "mm"))
+
+g1 <- ggplot(data = DATA, aes(x = traits, y = men)) +
+  geom_bar(stat = "identity") + ggtitle("Men seeking") +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.margin = unit(c(1,-1,1,0), "mm")) +
+  scale_y_reverse() + coord_flip()
+
+g2 <- ggplot(data = DATA, aes(x = traits, y = women)) +xlab(NULL)+
+  geom_bar(stat = "identity") + ggtitle("Women seeking") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        plot.margin = unit(c(1,0,1,-1), "mm")) +
+  coord_flip()
+
+gg1 <- ggplot_gtable(ggplot_build(g1))
+gg2 <- ggplot_gtable(ggplot_build(g2))
+gg.mid <- ggplot_gtable(ggplot_build(g.mid))
+
+grid.arrange(gg1,gg.mid,gg2,ncol=3,widths=c(4/9,1/9,4/9))
+```
+
+* For men: Preference of men is mostly for 'Attractiveness' in a woman
+* For Women: For women, it's fairly distributed over all the attributes.
+* Above visualization is what they want. Next we'll see what they think same sex looks for.
+
+## Participants opinion on what their same sex peers are looking for.
+```{r, what men and women think their sex wants from opposite gender, include=TRUE}
+# what men and women think their sex wants from opposite gender.
+g.mid<-ggplot(DATA_1,aes(x=1,y=traits))+geom_text(aes(label=traits))+
+  geom_segment(aes(x=0.94,xend=0.96,yend=traits))+
+  geom_segment(aes(x=1.04,xend=1.065,yend=traits))+
+  ggtitle("")+
+  ylab(NULL)+
+  scale_x_continuous(expand=c(0,0),limits=c(0.94,1.065))+
+  theme(axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background=element_blank(),
+        axis.text.x=element_text(color=NA),
+        axis.ticks.x=element_line(color=NA),
+        plot.margin = unit(c(1,-1,1,-1), "mm"))
+
+g1 <- ggplot(data = DATA_1, aes(x = traits, y = men)) +
+  geom_bar(stat = "identity") + ggtitle("Men-Same-sex Peers thinking") +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.margin = unit(c(1,-1,1,0), "mm")) +
+  scale_y_reverse() + coord_flip()
+
+g2 <- ggplot(data = DATA_1, aes(x = traits, y = women)) +xlab(NULL)+
+  geom_bar(stat = "identity") + ggtitle("Women-Same-sex Peer thinking") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        plot.margin = unit(c(1,0,1,-1), "mm")) +
+  coord_flip()
+
+gg1 <- ggplot_gtable(ggplot_build(g1))
+gg2 <- ggplot_gtable(ggplot_build(g2))
+gg.mid <- ggplot_gtable(ggplot_build(g.mid))
+
+grid.arrange(gg1,gg.mid,gg2,ncol=3,widths=c(4/9,1/9,4/9))
+```
+* Both men and women think that their fellow gender people are looking for attractive partners
+* Men think that their peers are least concerned with women ambitions
+* When women rate themselves on what they look in their partners, they were looking for someone with all the parameters but they assume that other women are only looking for men who are mostly attractive and fun.
+
+## Participants opinion on what the opposite sex is looking for.
+```{r, What the opposite sex is looking for, include=TRUE}
+# What the opposite sex is looking for  
+g.mid<-ggplot(DATA_2,aes(x=1,y=traits))+geom_text(aes(label=traits))+
+  geom_segment(aes(x=0.94,xend=0.96,yend=traits))+
+  geom_segment(aes(x=1.04,xend=1.065,yend=traits))+
+  ggtitle("")+
+  ylab(NULL)+
+  scale_x_continuous(expand=c(0,0),limits=c(0.94,1.065))+
+  theme(axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.background=element_blank(),
+        axis.text.x=element_text(color=NA),
+        axis.ticks.x=element_line(color=NA),
+        plot.margin = unit(c(1,-1,1,-1), "mm"))
+
+g1 <- ggplot(data = DATA_2, aes(x = traits, y = men)) +
+  geom_bar(stat = "identity") + ggtitle("Men-Opposite sex looking for") +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.margin = unit(c(1,-1,1,0), "mm")) +
+  scale_y_reverse() + coord_flip()
+
+g2 <- ggplot(data = DATA_2, aes(x = traits, y = women)) +xlab(NULL)+
+  geom_bar(stat = "identity") + ggtitle("Women-Opposite sex looking for") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        plot.margin = unit(c(1,0,1,-1), "mm")) +
+  coord_flip()
+
+gg1 <- ggplot_gtable(ggplot_build(g1))
+gg2 <- ggplot_gtable(ggplot_build(g2))
+gg.mid <- ggplot_gtable(ggplot_build(g.mid))
+
+grid.arrange(gg1,gg.mid,gg2,ncol=3,widths=c(4/9,1/9,4/9))
+
+```
+* Both men and women feel that the opposite gender is looking for an attractive partner
+* Men also think that women would want them to be fun. 
+* Women have an opinion that men do not give much importance to other attributes apart from being attractive. 
+* Overall women expect men to be good in almost all aspects where as men prefer women who are attractive and have an above average intelligence. 
+
+
+## Understanding the demographics of the data.
+```{r Visualization, include = TRUE, warning=FALSE}
+ggplot(select(data , race, imprace, gender), aes(x=race, y=imprace, fill=gender), labels = c("Race", "Race Importance")) +
+  geom_boxplot()+
+  scale_x_discrete(labels=c("Black", "European", "Latino", "Asian", "Other")) +
+  scale_fill_manual(values = c("#468189", "#9DBEBB"), labels = c("Female", "Male")) +
+  labs(title= "Race importance and gender ratio of the Data", y="Race Importance", x = "Race")
+```
+
+* In the given data set we can see that Europeans are the highest among all the races. 
+* In this survey apart from Asians, the number of females are more compared men. 
+* There are twice as many as Latino and Black females compared to males. 
+
+## Career fields of people in the data set
+```{r Visualization1, include = TRUE, warning=FALSE}
+career_labels <- c("Lawyer", "Academic/Research", "Psychologist",  
+                   "Doctor/Medicine", "Engineer", "Creative Arts/Entertainment", 
+                   "Banking/Business", "Real Estate", "International Affairs", 
+                   "Undecided", "Social Work", "Speech Pathology", "Politics", 
+                   "Sports/Athletics", "Other", "Journalism", "Architecture")
+
+ggplot(data = career_data) +
+  geom_bar(aes(career_c, fill=gender)) + 
+  scale_x_discrete(label = career_labels) + coord_flip() +
+  labs(title = "Career Fields Distribution", x = "Career Field", y = "Count")   +
+  scale_fill_manual(values = c("#468189", "#9DBEBB"), labels = c("Female", "Male"))
+```
+
+* More number of people are into academic research, followed by business/ banking and lawyers. 
+* Females dominate in academic research and males in business/banking. 
+* Few interesting observations is that there are no females who are pursuing a career in architecture, real estate and sports in our data set. Vice-versa, there are no males in journalism, speech pathology.
+
+## Interests in various habits of the people in the dataset.
+```{r Visualization2,include = TRUE, warning=FALSE}
+# habits list overlapping 
+
+habit_list =  colnames(data)[51:67]
+
+ggplot(na.omit(select(data, gender, sports)) , aes(x=sports, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Sport") + 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, tvsports)), aes(x=tvsports, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("TV - sport")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, music)), aes(x=music, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Music")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, movies)), aes(x=movies, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Movies")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, hiking)), aes(x=hiking, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Hiking")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, dining)), aes(x=dining, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Dining")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, shopping)), aes(x=shopping, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Shopping")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, gaming)), aes(x=gaming, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Gaming")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, museums)), aes(x=museums, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Museums")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, yoga)), aes(x=yoga, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Yoga")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, exercise)), aes(x=exercise, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Exercise")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, tv)), aes(x=tv, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("TV")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, concerts)), aes(x=concerts, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Concerts")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, art)), aes(x=art, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Art")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, clubbing)), aes(x=clubbing, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Clubbing")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, theater)), aes(x=theater, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Theater")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+
+ggplot(na.omit(select(data, gender, reading)), aes(x=reading, fill=gender))+
+  geom_density(alpha=0.4) + ggtitle("Reading")+ 
+  scale_fill_manual(values = c("#f88379", "#B0B2CC"), labels = c("Female", "Male"))
+```
+* We can see that there are many similarities in habits such as music, dining, and concerts. 
+* The contrast is seen clearly in shopping, yoga, theater habits for male and female. 
+
+## Top Men and Women – Most desirable (people who got a second date)
+
+```{r Top Men and Women,include = TRUE, warning=FALSE}
+# Top Women 
+# Race
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopWoman$race)), main="Race of a Top Woman")
+# Career field
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopWoman$field_cd)), main="Field of a Top Woman", 
+        legend.text = c("3 - Social Science, Psychologist", 
+                        "8 - Business/Economy/Finance", "9 - Education, Academia "
+        ), args.legend = list(text.width = 3.3, xjust = 1, cex = 0.58), ylab = "Frequency") 
+
+# goal in a date
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopWoman$goal)), main="Goal of a Top Woman", 
+        legend.text = c("1 -  Fun night out" , "2 - Meeting new people"
+        ), args.legend = list(text.width = 1.5, xjust = 1, cex = 0.58), ylab = "Frequency")
+
+# Top Men
+# race
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopMan$race)), main="Race of a Top Man")
+
+#career field
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopMan$field_cd)), main="Field of a Top Man", 
+        legend.text = c("8 - Business/Economy/Finance"
+        ), args.legend = list(text.width = 3.3, xjust = 1, cex = 0.58), ylab = "Frequency")
+# Goal in a date 
+barplot(col=rgb(0.8,0.1,0.1,0.6), prop.table(table(TopMan$goal)), main="Goal of a Top Man", 
+        legend.text = c("1 -  Fun night out" , "2 - Meeting new people"
+        ), args.legend = list(text.width = 1.5, xjust = 1, cex = 0.58), ylab = "Frequency")
+
+```
+
+## Conclusions for Top men and Women:
+
+* European men are most desired and Asian men are least desired.
+* The goal of top men and women are to have a fun night out and to meet new people.
+* Top women are pursuing a career in business/finance/banking and Top men are also pursuing a career in business/finance/banking by large margin. 
+* European women are most desired and African women are least desired.
+* Top women are almost equally distributed in different type of career fields, but top men are predominantly in business/finance/banking.
+
+
+
+
+
+
