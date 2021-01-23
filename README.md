@@ -1,6 +1,6 @@
 # Speed_Dating_Analysis
 
-Analysis on Spped Dating data collected from many particpants to find trends in data, attributes contributing to a match.
+Analysis on Speed Dating data collected from many particpants to find trends in data, attributes contributing to a match.
 
 Topics analysed:
 
