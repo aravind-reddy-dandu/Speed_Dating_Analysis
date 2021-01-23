@@ -11,3 +11,5 @@ Likelihood of getting a second date
 Whole project done in R.
 
 Key words: Data visualization, regression, XGB, EM algorithm, logistic regression
+
+Contributors: Aravinda Reddy Dandu, Rithvik Reddy Ananth, Sri Kaavya Toodi, Soumya Reddy AnthaReddy
