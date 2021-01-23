@@ -7,3 +7,7 @@ Topics analysed:
 Data Visualization and insights
 Predicting match between two persons
 Likelihood of getting a second date
+
+Whole project done in R.
+
+Key words: Data visualization, regression, XGB, EM algorithm, logistic regression
