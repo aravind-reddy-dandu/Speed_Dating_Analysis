@@ -1,0 +1,158 @@
+---
+title: "How likely to get a second date?"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+## Goal:
+
+How likely to get a second date?
+
+The goal is to Predict probability of getting a second date based on the information collected after speed dating session.
+In a speed dating session Data was gathered from participants.During the session ,the attendees would have a four minute "first date" with every other participant of the opposite gender .After the session ,all  participants were asked to rate their date on six attributes:Attractiveness,Sincerity,Intelligence,Fun,Ambition,Shared Interests and also asked would they like to see their date again.
+By considering the ratings given by participant to the date  we can predict the probability of getting a chance for second date using logistic regression.
+
+```{r how likely to get a second date?}
+# importing all necessary libraries and reading the data 
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(broom)
+speed_dating <- read.csv("D:\\Study\\Stat\\Final_project\\Datasets\\Speed_Dating\\Speed Dating Data.csv",
+                         header = T, stringsAsFactors = F)
+#head(speed_dating)
+
+```
+
+
+```{r }
+# visualizing match column.
+count(speed_dating, "match")
+table(speed_dating$match)
+barplot(table(speed_dating$match))
+```
+
+After the speed dating session we can observe that only 20% of people found a match . It is likely that only 20% of people will get a chance for second date.
+
+## Logistic regression:
+
+We are using logistic regression to predict how likely a person can get second date by training the model based on ratings given by partner in first date. By passing certain set of attribute ratings the output will be the probality to get second date.
+
+```{r logistic regression}
+#sigmoid for squashing output between o and 1
+sigmoid <- function(z) {
+  1 / (1 + exp(-z))
+}
+
+#cost function.using cross-entropy
+cost <- function(theta, X, y) {
+  m <- length(y)
+  
+  h <- sigmoid(X %*% theta)
+  J <- (t(-y) %*% log(h) - t(1 - y) %*% log(1 - h)) / m
+  J
+}
+
+#gradient function to be given to optim
+grad <- function(theta, X, y) {
+  m <- length(y)
+  
+  h <- sigmoid(X %*% theta)
+  grad <- (t(X) %*% (h - y)) / m
+  grad
+}
+# code to perform logistic regression
+logisticRegression <- function(X, y) {
+  # removing NA values from data
+  val <- na.omit(cbind(y, X))
+  # adding bias term and then converting into matrix
+  X <- mutate(val[,-1], bias = 1)
+  X <- as.matrix(X[, c(ncol(X), 1:(ncol(X) - 1))])
+  y <- as.matrix(val[, 1])
+  #calculating theta
+  theta <- matrix(rep(0, ncol(X)), nrow = ncol(X))
+  #using optim function to descend
+  costOpti <-
+    optim(matrix(rep(0, 8), nrow = 8), cost, grad, X = X, y = y)
+  return(costOpti$par)
+}
+logisticProb<-function(p,x){
+  val <- na.omit( X)
+  # adding bias term and then converting into matrix
+  X <- mutate(val[,-1], bias = 1)
+  X <- as.matrix(X[, c(ncol(X), 1:(ncol(X) - 1))])
+  return(sigmoid(X %*% p))
+}
+# adding bias term and then converting into matrix
+logisticPrediction <- function(model, X) {
+  X <- na.omit(X)
+  X <- mutate(X, bias = 1)
+  X <- as.matrix(X[, c(ncol(X), 1:(ncol(X) - 1))])
+  return(sigmoid(X %*%model ))
+}
+
+```
+
+
+```{r Appling logistic regression}
+# selecting required columns from data: we require ratings
+# given by partner in first date to train the model.
+speed_dating.df <-
+  select(speed_dating,
+         match,
+         attr_o,
+         sinc_o,
+         intel_o,
+         fun_o,
+         amb_o,
+         like_o,
+         shar_o)
+print(head(speed_dating.df))
+
+
+
+```
+```{r }
+# performing logistic regression for selected data
+speed_dating.X <- speed_dating.df[,-1]
+speed_dating.y <- speed_dating.df[, 1]
+# performing logistic regression for selected data
+model <- logisticRegression(speed_dating.X,speed_dating.y)
+# calculating probability for how likely a person with
+# certain attributes rating can get a chance for second date.
+input_constraints <-
+  expand.grid(
+    attr = seq(6, 9),
+    sinc = 7,
+    intel_o = 8,
+    fun = 9,
+    amb = 8,
+    like = seq(6,9),
+    shar= 6
+  )
+second_date <- logisticPrediction(model, input_constraints)
+second_date
+```
+
+
+
+
+
+
+
+
+
+## conclusion:
+
+By passing certain set of attribute ratings for a particular person we got the probability of getting a second date with the help of ratings given by partner in first date.
+From results we can observe that for different combination of attributes the probability to get a second date changes.
+Based on results we can conclude that being likeable is more important for securing a second date and even we can observe that maintaining good ratings for every attribute increases the chances to secure second date.
+Therefore, we cannot conclude that based on which attribute a person's second date completely depends on, all the attributes play a key role.
+
+
